@@ -1,4 +1,5 @@
 import math
+import re
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool, cpu_count
@@ -15,8 +16,19 @@ CHUNKS = 20            # how many chunks to split the DF for parallel hashing
 QUERY_BATCH = 5000     # how many query points per radius_neighbors call (tuneable)
 # ===================
 
+def preprocess_text(text):
+    """Lowercase, strip, replace multiple spaces with single space."""
+    if pd.isna(text):
+        return ""
+    text = str(text).lower()
+    text = text.strip()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
 def text_to_dict(text):
-    tokens = str(text).split()
+    """Convert text into token frequency dictionary."""
+    text = preprocess_text(text)
+    tokens = text.split()
     freq = {}
     for t in tokens:
         freq[t] = freq.get(t, 0) + 1
@@ -89,7 +101,6 @@ def deduplicate(df, X, threshold=SIM_THRESHOLD, query_batch=QUERY_BATCH):
                 continue  # already flagged duplicate; skip
 
             # Only mark neighbors that come *after* current index to preserve first occurrence
-            # (avoids race where two points mark each other)
             for nb in neighbors:
                 if nb <= i:
                     continue
