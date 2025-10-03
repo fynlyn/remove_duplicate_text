@@ -10,8 +10,8 @@ from sklearn.neighbors import NearestNeighbors
 INPUT_FILE = "huge_file.xlsx"
 SHEET_NAME = 0
 TEXT_COLUMN = "text"
-N_FEATURES = 15
-SIM_THRESHOLD = 0.1    # normalized L1 threshold (0..1). raw L1 radius = SIM_THRESHOLD * N_FEATURES
+N_FEATURES = 100
+SIM_THRESHOLD = 0.09    # normalized L1 threshold (0..1). raw L1 radius = SIM_THRESHOLD * N_FEATURES
 CHUNKS = 20            # how many chunks to split the DF for parallel hashing
 QUERY_BATCH = 5000     # how many query points per radius_neighbors call (tuneable)
 # ===================
@@ -26,9 +26,10 @@ def preprocess_text(text):
     return text
 
 def text_to_dict(text):
-    """Convert text into token frequency dictionary."""
+    """Convert text into token frequency dictionary, with tokens sorted alphabetically."""
     text = preprocess_text(text)
     tokens = text.split()
+    tokens.sort()  # alphabetical order to make token order less important
     freq = {}
     for t in tokens:
         freq[t] = freq.get(t, 0) + 1
@@ -85,7 +86,7 @@ def deduplicate(df, X, threshold=SIM_THRESHOLD, query_batch=QUERY_BATCH):
 
     print(f"Fitting NearestNeighbors on {n} vectors (metric=manhattan)...")
     nn = NearestNeighbors(metric="manhattan", n_jobs=cpu_count())
-    nn.fit(X)   # builds index (tree/balltree/hybrid depending on sklearn)
+    nn.fit(X)   # builds index
 
     print("Querying neighbors in batches and marking duplicates...")
     for start in range(0, n, query_batch):
